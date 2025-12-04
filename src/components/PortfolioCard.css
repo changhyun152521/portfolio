@@ -29,10 +29,12 @@
   flex-direction: column;
 }
 
-.portfolio-card:hover .card-inner {
-  border-color: rgba(96, 165, 250, 0.5);
-  box-shadow: 0 20px 60px rgba(96, 165, 250, 0.3);
-  transform: translateY(-10px);
+@media (hover: hover) {
+  .portfolio-card:hover .card-inner {
+    border-color: rgba(96, 165, 250, 0.5);
+    box-shadow: 0 20px 60px rgba(96, 165, 250, 0.3);
+    transform: translateY(-10px);
+  }
 }
 
 .card-image-container {
@@ -130,8 +132,10 @@
   transition: transform 0.5s ease;
 }
 
-.portfolio-card:hover .device-image {
-  transform: scale(1.1);
+@media (hover: hover) {
+  .portfolio-card:hover .device-image {
+    transform: scale(1.1);
+  }
 }
 
 @keyframes slideInLeft {
@@ -172,8 +176,10 @@
   transition: color 0.3s ease;
 }
 
-.portfolio-card:hover .card-title {
-  color: #60a5fa;
+@media (hover: hover) {
+  .portfolio-card:hover .card-title {
+    color: #60a5fa;
+  }
 }
 
 .card-description {
@@ -202,9 +208,11 @@
   transition: all 0.3s ease;
 }
 
-.portfolio-card:hover .tag {
-  background: rgba(96, 165, 250, 0.3);
-  border-color: rgba(96, 165, 250, 0.5);
+@media (hover: hover) {
+  .portfolio-card:hover .tag {
+    background: rgba(96, 165, 250, 0.3);
+    border-color: rgba(96, 165, 250, 0.5);
+  }
 }
 
 .card-overlay {
@@ -222,8 +230,10 @@
   border-radius: 16px;
 }
 
-.portfolio-card:hover .card-overlay {
-  opacity: 1;
+@media (hover: hover) {
+  .portfolio-card:hover .card-overlay {
+    opacity: 1;
+  }
 }
 
 .view-detail {
