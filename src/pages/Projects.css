@@ -1,0 +1,158 @@
+.projects-page {
+  min-height: 100vh;
+  background: #0f172a;
+  color: #ffffff;
+  padding-top: 80px;
+}
+
+.portfolio-section {
+  padding: 4rem 2rem;
+  position: relative;
+  background: #0f172a;
+}
+
+.section-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.home-button {
+  display: block;
+  margin: 0 auto 3rem;
+  padding: 0.8rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: rgba(96, 165, 250, 0.1);
+  border: 2px solid #60a5fa;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.5px;
+}
+
+.home-button:hover {
+  background: rgba(96, 165, 250, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(96, 165, 250, 0.3);
+}
+
+.home-button:active {
+  transform: translateY(0);
+}
+
+.section-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 2.5rem;
+  color: #ffffff;
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, #60a5fa, transparent);
+}
+
+.filter-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.filter-button {
+  padding: 0.6rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(96, 165, 250, 0.1);
+  border: 2px solid rgba(96, 165, 250, 0.3);
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.5px;
+}
+
+.filter-button:hover {
+  color: #ffffff;
+  background: rgba(96, 165, 250, 0.2);
+  border-color: rgba(96, 165, 250, 0.5);
+  transform: translateY(-2px);
+}
+
+.filter-button.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #60a5fa;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+
+.filter-button.active:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+}
+
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 380px)) !important;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  justify-content: center;
+  width: 100%;
+}
+
+.projects-page .portfolio-grid .portfolio-card {
+  width: 100%;
+  max-width: 380px;
+  min-width: 300px;
+}
+
+@media (max-width: 768px) {
+  .portfolio-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem;
+    max-width: 90%;
+    margin: 0 auto;
+  }
+
+  .projects-page .portfolio-grid .portfolio-card {
+    max-width: 100%;
+    min-width: unset;
+    width: 100%;
+  }
+
+  .portfolio-section {
+    padding: 1rem 1.5rem 4rem;
+  }
+
+  .home-button {
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-title {
+    margin-bottom: 3rem;
+  }
+
+  .filter-buttons {
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .filter-button {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
+  }
+}
+
