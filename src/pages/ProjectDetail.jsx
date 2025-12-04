@@ -60,12 +60,14 @@ function ProjectDetail() {
         server: {
           title: '서버 설정 (server/index.js)',
           features: [
-            'CORS 설정: 다중 origin 허용 (로컬, Vercel 배포 URL)',
+            'CORS 설정: mathchang.com 및 개발 환경(localhost, 내부망 IP)만 허용',
             'MongoDB 연결: Atlas 또는 로컬 MongoDB',
             '요청 로깅: API 요청 상세 로깅',
-            '에러 핸들링: 통합 에러 핸들러'
+            '에러 핸들링: 통합 에러 핸들러',
+            'Rate Limiting: 로그인/아이디 찾기/비밀번호 재설정 API 요청 횟수 제한',
+            '보안 헤더: helmet.js로 클릭재킹, MIME 스니핑, XSS 방어 헤더 자동 설정'
           ],
-          principle: 'CORS 미들웨어: 모든 응답에 CORS 헤더 추가 / JWT 인증: Bearer 토큰 방식 / MongoDB 연결: 환경변수 기반 동적 연결'
+          principle: 'CORS 미들웨어: 특정 origin만 허용하여 보안 강화 / Rate Limiting: express-rate-limit으로 브루트포스 공격 방지 (로그인 15분당 5회, 비밀번호 재설정 1시간당 3회) / Helmet.js: 보안 헤더 자동 설정 (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection 등) / JWT 인증: Bearer 토큰 방식 / MongoDB 연결: 환경변수 기반 동적 연결'
         },
         models: [
           {
@@ -236,7 +238,7 @@ function ProjectDetail() {
         }
       },
       features: {
-        security: ['bcrypt 비밀번호 해싱 (salt rounds: 10)', 'JWT 토큰 인증', 'CORS 설정', '개인정보 처리 로그'],
+        security: ['bcrypt 비밀번호 해싱 (salt rounds: 10)', 'JWT 토큰 인증', 'CORS 정책 강화 (mathchang.com 및 개발 환경만 허용)', 'Rate Limiting (로그인 15분당 5회, 비밀번호 재설정 1시간당 3회)', '보안 헤더 (helmet.js: 클릭재킹, MIME 스니핑, XSS 방어)', '개인정보 처리 로그'],
         performance: ['MongoDB 인덱스 최적화', 'Populate로 관계 데이터 효율적 조회', 'React 컴포넌트 최적화'],
         ux: ['반응형 디자인 (모바일/데스크톱)', '카카오톡 인앱 브라우저 대응', '로딩 상태 관리', '에러 처리 및 사용자 피드백'],
         scalability: ['모듈화된 구조 (MVC 패턴)', '환경변수 기반 설정', 'Cloudinary 파일 업로드 통합']
