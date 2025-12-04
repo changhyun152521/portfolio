@@ -14,7 +14,7 @@ function Home() {
         <div className="hero-content">
           <div className="hero-text">
             <h1 className="hero-title">
-              <span className="hero-line">개인적으로 만든</span>
+              <span className="hero-line">창현이가 직접 만든</span>
               <span className="hero-line">웹사이트와 앱을 모아둔</span>
             </h1>
             <p className="hero-subtitle">MY PROJECTS</p>
@@ -31,4 +31,3 @@ function Home() {
 }
 
 export default Home
-
