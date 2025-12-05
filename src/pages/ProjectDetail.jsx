@@ -60,14 +60,14 @@ function ProjectDetail() {
         server: {
           title: '서버 설정 (server/index.js)',
           features: [
-            'CORS 정책 강화: 기존에 임시로 모든 도메인을 허용하던 설정을 제거하고, mathchang.com 및 개발 환경(localhost, 내부망 IP)만 허용',
+            'CORS 정책 강화: 기존에 임시로 모든 도메인을 허용하던 설정을 제거하고, mathchang.com 및 개발 환경(localhost, 내부망 IP)만 허용하도록 수정',
             'MongoDB 연결: MONGODB_ATLAS_URL 우선 사용, 없을 경우 로컬 MongoDB 연결, 연결 실패 시 프로세스 종료',
-            '요청 로깅: 모든 API 요청 상세 로깅 (메서드, 경로, 본문, 헤더 기록)',
             '에러 핸들링: 4개 파라미터 미들웨어로 통합 에러 처리, 에러 타입별 적절한 HTTP 상태 코드 반환, 개발 환경에서만 스택 트레이스 노출',
             'Rate Limiting 적용: 로그인, 아이디 찾기, 비밀번호 재설정 API에 요청 횟수 제한을 추가하여 브루트포스(무차별대입) 공격을 방지 (로그인 15분당 5회, 비밀번호 재설정 1시간당 3회)',
-            '보안 헤더 추가: helmet.js를 적용하여 클릭재킹, MIME 스니핑, XSS 등 일반적인 웹 공격에 대한 방어 헤더를 자동 설정'
+            '보안 헤더 추가: helmet.js를 적용하여 클릭재킹, MIME 스니핑, XSS 등 일반적인 웹 공격에 대한 방어 헤더를 자동 설정',
+            '요청 크기 제한: express.json() 및 express.urlencoded()에 limit 옵션을 설정하여 요청 본문 크기를 10MB로 제한, 대용량 요청 공격 방어'
           ],
-          principle: 'CORS 정책 강화: 기존에 모든 도메인을 허용하던 설정을 제거하고, mathchang.com 및 개발 환경(localhost, 내부망 IP)만 허용하도록 변경 → Origin 헤더 확인 → 허용된 Origin 목록과 비교 → CORS 헤더 자동 설정 (Access-Control-Allow-Origin, Access-Control-Allow-Credentials) → OPTIONS 요청 (Preflight) 명시적 처리 / Rate Limiting: express-rate-limit으로 브루트포스 공격 방지 (로그인 15분당 5회, 비밀번호 재설정 1시간당 3회) / 보안 헤더: helmet.js를 적용하여 클릭재킹, MIME 스니핑, XSS 등 일반적인 웹 공격에 대한 방어 헤더를 자동 설정 (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection 등) / MongoDB 연결: 환경변수 기반 동적 연결 (MONGODB_ATLAS_URL 우선) / 에러 핸들러: 모든 라우트 이후에 위치하여 처리되지 않은 에러 캐치, CORS 헤더를 에러 응답에도 포함'
+          principle: 'CORS 정책 강화: 기존에 모든 도메인을 허용하던 설정을 제거하고, mathchang.com 및 개발 환경(localhost, 내부망 IP)만 허용하도록 변경 → Origin 헤더 확인 → 허용된 Origin 목록과 비교 → CORS 헤더 자동 설정 (Access-Control-Allow-Origin, Access-Control-Allow-Credentials) → OPTIONS 요청 (Preflight) 명시적 처리 / Rate Limiting: express-rate-limit으로 브루트포스 공격 방지 (로그인 15분당 5회, 비밀번호 재설정 1시간당 3회) / 보안 헤더: helmet.js를 적용하여 클릭재킹, MIME 스니핑, XSS 등 일반적인 웹 공격에 대한 방어 헤더를 자동 설정 (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection 등) / 요청 크기 제한: express.json({ limit: "10mb" }), express.urlencoded({ limit: "10mb" })로 요청 본문 크기를 10MB로 제한하여 대용량 요청 공격 방어 / MongoDB 연결: 환경변수 기반 동적 연결 (MONGODB_ATLAS_URL 우선) / 에러 핸들러: 모든 라우트 이후에 위치하여 처리되지 않은 에러 캐치, CORS 헤더를 에러 응답에도 포함 / 성능 최적화: 불필요한 로그 제거로 성능 향상'
         },
         models: [
           {
@@ -114,6 +114,11 @@ function ProjectDetail() {
             name: 'PrivacyLog 모델',
             fields: 'userId(ObjectId, 대상 사용자 ID), action(String, 처리 행위), accessedBy(ObjectId, 접근한 사용자 ID), ipAddress(String), userAgent(String), details(String, 상세 정보)',
             principle: '개인정보 처리 이력 기록 (GDPR 준수) / 모든 개인정보 접근 자동 기록 / IP 주소, User-Agent, 접근 시간 저장 / 보안 감사 용도'
+          },
+          {
+            name: 'ParentStudentLink 모델',
+            fields: 'parentId(ObjectId, User 참조, required, indexed), studentId(ObjectId, User 참조, required, indexed), createdAt(Date, auto), updatedAt(Date, auto)',
+            principle: 'n:m 관계 지원 (한 학생이 여러 학부모, 한 학부모가 여러 학생) / 복합 유니크 인덱스 {parentId: 1, studentId: 1} (중복 연동 방지) / 양방향 조회 가능 (학생→학부모, 학부모→학생)'
           }
         ],
         middleware: {
@@ -188,6 +193,26 @@ function ProjectDetail() {
               '답글 기능: addReply (답글 추가), updateReply (답글 수정), deleteReply (답글 삭제) - 중첩 스키마로 댓글-답글 구조'
             ],
             principle: '중첩 스키마로 댓글-답글 구조 / reply 필드에 content, author, authorName, createdAt 저장'
+          },
+          {
+            name: 'parentStudentLinkController.js',
+            features: [
+              'getLinkedStudents: 학부모의 연동된 학생 목록 조회 - ParentStudentLink.find({ parentId })로 모든 학생 조회, populate로 학생 정보 포함',
+              'getLinkedParents: 학생의 연동된 학부모 목록 조회 - ParentStudentLink.find({ studentId })로 모든 학부모 조회, populate로 학부모 정보 포함',
+              'createLink: 연동 관계 생성 - 중복 체크 (이미 연동되어 있으면 에러), 학부모/학생 유효성 검증, 유니크 인덱스로 중복 방지',
+              'deleteLinkById: 연동 관계 삭제 (linkId로) - 특정 연동만 삭제, 다른 연동 관계는 영향 없음',
+              'deleteLinkByParentAndStudent: 연동 관계 삭제 (parentId, studentId로) - 특정 학부모-학생 조합만 삭제'
+            ],
+            principle: 'n:m 관계 관리 / 복합 유니크 인덱스로 중복 방지 / 양방향 조회 지원 (학생→학부모, 학부모→학생)'
+          },
+          {
+            name: 'usersController.js (학생 회원가입 시 학부모 계정 자동 생성)',
+            features: [
+              '학생 회원가입 시 학부모 계정 자동 생성: parentContact 기반으로 학부모 userId 생성, 학부모 계정이 없으면 자동 생성, ParentStudentLink 자동 생성',
+              '기존 학부모 계정 재사용: 학부모 계정이 이미 있으면 재사용, 중복 생성 방지',
+              '학생 삭제 시 연동 정보 정리: 연동된 학부모의 studentContact를 "000-0000-0000"으로 초기화, ParentStudentLink 자동 삭제, 개인정보 처리 로그 기록'
+            ],
+            principle: '학생 회원가입 시 parentContact로 학부모 userId 생성 → 학부모 계정 조회/생성 → ParentStudentLink 생성 / 학생 삭제 시 연동 정보 정리'
           }
         ]
       },
@@ -306,6 +331,57 @@ function ProjectDetail() {
               '페이지 이동 시 자동으로 상단으로 스크롤: useLocation 훅으로 경로 변경 감지, window.scrollTo(0, 0) 즉시 실행'
             ],
             principle: 'useLocation 훅으로 pathname 변경 감지 → useEffect로 window.scrollTo(0, 0) 실행'
+          },
+          {
+            name: 'StudentSelector.jsx',
+            features: [
+              '학부모가 연동된 학생 목록에서 선택: GET /api/parent-student-links/parent/:parentId로 학생 목록 조회',
+              '자동 선택: 학생이 1명이면 자동 선택, 학생이 여러 명이면 모달 표시',
+              'X 버튼 클릭 시 상단 학생 자동 선택: 모달 닫을 때 첫 번째 학생 자동 선택',
+              '변경 버튼: 학생이 1명이면 변경 버튼 클릭 시 안내 메시지 표시'
+            ],
+            principle: '학생 목록 조회 → 학생 수 확인 → 1명이면 자동 선택, 여러 명이면 모달 표시 / X 버튼 클릭 시 첫 번째 학생 선택'
+          },
+          {
+            name: 'useAutoLogout.js (자동 로그아웃 훅)',
+            features: [
+              '30분 비활성 시 자동 로그아웃: INACTIVITY_TIME = 30 * 60 * 1000',
+              '활동 감지: 마우스, 키보드, 스크롤, 터치, 클릭 이벤트로 활동 감지',
+              '활동 시 타이머 자동 리셋: 활동 감지 시 localStorage에 lastActivity 업데이트, 타이머 리셋',
+              '5분 전 경고 알림: WARNING_TIME = 25 * 60 * 1000, 5분 전 alert 표시',
+              'Axios 인터셉터 연동: API 요청 시에도 활동 시간 업데이트, 401 에러 시 자동 로그아웃 처리'
+            ],
+            principle: '활동 감지 이벤트 리스너 등록 (mousedown, mousemove, keypress, scroll, touchstart, click) → 활동 시 타이머 리셋 → 30분 비활성 시 자동 로그아웃'
+          },
+          {
+            name: 'Home.jsx (PC/모바일 애니메이션 분리)',
+            features: [
+              'PC/모바일 애니메이션 분리: 화면 크기 감지 (isDesktop, isMobile), PC에서만 모든 카드에 애니메이션 적용, 모바일에서만 첫 번째 카드에 애니메이션 적용',
+              'Intersection Observer 활용: PC에서 모든 카드에 Intersection Observer 적용, 모바일에서 첫 번째 카드만 적용',
+              '성능 최적화: requestAnimationFrame으로 렌더링 최적화, 디바운싱으로 불필요한 계산 방지'
+            ],
+            principle: '화면 크기 감지 → PC/모바일 분리 → PC: 모든 카드 애니메이션, 모바일: 첫 번째 카드만 애니메이션 / Intersection Observer로 스크롤 애니메이션 최적화'
+          },
+          {
+            name: 'ParentClassStatus.jsx (학부모 교실)',
+            features: [
+              '학부모의 연동된 학생 목록 조회: GET /api/parent-student-links/parent/:parentId',
+              '학생이 1명이면 자동 선택: 학생이 1명이면 자동으로 선택하고 반 목록 표시',
+              '학생이 여러 명이면 선택 모달 표시: StudentSelector 컴포넌트로 학생 선택',
+              '선택된 학생의 반 목록 표시: 선택된 학생의 반 정보 가져와서 표시',
+              '변경 버튼: 학생이 1명이면 변경 버튼 클릭 시 안내 메시지 표시'
+            ],
+            principle: '연동된 학생 목록 조회 → 학생 수 확인 → 1명이면 자동 선택, 여러 명이면 모달 표시 → 선택된 학생의 반 조회 → 반 목록 표시'
+          },
+          {
+            name: 'ParentClassStatusDetail.jsx',
+            features: [
+              '선택된 학생의 수업 현황 상세 조회: studentId 파라미터로 특정 학생의 수업 현황 조회',
+              '날짜별 기록 표시: 리뷰TEST 점수, 실전TEST 점수, 과제, 특이사항',
+              '통계 계산 및 표시: 반 평균, 최고점, 월별 평균 등',
+              '선택된 학생 이름 표시: GET /api/users/:studentId로 학생 정보 가져와서 이름 표시'
+            ],
+            principle: 'studentId로 학생 정보 조회 → 학생 이름 표시 → 수업 기록 조회 → 통계 계산 → UI 렌더링'
           }
         ]
       },
@@ -331,12 +407,34 @@ function ProjectDetail() {
           ]
         },
         linking: {
-          title: '학생-학부모 연동',
+          title: '학생-학부모 n:m 연동 시스템',
           details: [
-            '연동 방법 1: 학부모 userId = "학생userId_parent" (예: 학생 userId가 "student123"이면 학부모 userId는 "student123_parent")',
-            '연동 방법 2: 학부모 userId = 학생의 parentContact (예: 학생의 parentContact가 "010-1234-5678"이면 학부모 userId는 "010-1234-5678")',
-            '연동 방법 3: 학부모 studentContact = 학생의 phone (예: 학생의 phone이 "010-1234-5678"이면 학부모 studentContact는 "010-1234-5678")',
-            '연동 조회 로직: 학생인 경우 연동된 학부모 찾기, 학부모인 경우 연동된 학생 찾기 (여러 방법으로 연동 관계 확인)'
+            '연동 관계 구조: ParentStudentLink 컬렉션으로 n:m 관계 구현 - 한 학생이 여러 학부모와 연동 가능 (1:n), 한 학부모가 여러 학생과 연동 가능 (n:1), 전체적으로는 n:m 관계',
+            '연동 생성 플로우: 관리자 또는 학부모가 연동 요청 → 서버에서 중복 체크 → 학부모/학생 유효성 검증 → ParentStudentLink 생성 → 유니크 인덱스로 중복 방지',
+            '학부모 교실 플로우: 학부모 로그인 → 연동된 학생 목록 조회 → 학생이 1명이면 자동 선택, 여러 명이면 선택 모달 표시 → 반 목록 표시 → 반 클릭 시 상세 페이지로 이동 (studentId 파라미터 포함)',
+            '연동 조회: GET /api/parent-student-links/parent/:parentId (학부모의 학생 목록), GET /api/parent-student-links/student/:studentId (학생의 학부모 목록)'
+          ]
+        },
+        parentStudentSelection: {
+          title: '학부모 학생 선택 흐름',
+          steps: [
+            '학부모가 수업 현황 페이지 접속',
+            'GET /api/parent-student-links/parent/:id로 연동된 학생 목록 조회',
+            'ParentStudentLink.find({ parentId }).populate("studentId")로 모든 학생 조회',
+            '학생 수 확인: 1명이면 자동 선택, 여러 명이면 모달 표시',
+            '선택된 학생의 반 정보 조회: GET /api/users/:studentId',
+            '반 목록 표시, 반 클릭 시 상세 페이지로 이동 (studentId 파라미터 포함)'
+          ]
+        },
+        classRecordFlow: {
+          title: '수업 기록 조회 흐름',
+          steps: [
+            '학생/학부모가 수업 현황 상세 페이지 접속',
+            'GET /api/student-records/my-records?classId=xxx&date=yyyy-mm-dd&studentId=xxx (학부모인 경우)',
+            '권한 확인: 학생은 본인 기록만 조회 가능, 학부모는 연동된 학생 기록만 조회 가능',
+            'StudentRecord.find({ studentId, classId, date })로 기록 조회',
+            '통계 계산: 반 평균, 최고점, 월별 평균',
+            'UI 렌더링: 날짜별 기록 표시, 통계 표시'
           ]
         },
         relationship: {
@@ -366,17 +464,27 @@ function ProjectDetail() {
         security: [
           '비밀번호 보안: bcrypt 해싱 (salt rounds: 10), 평문 비밀번호 절대 저장하지 않음, Pre-save hook에서 자동 해싱',
           '인증 보안: JWT 토큰 기반 인증, Bearer Token 형식, 토큰에 사용자 정보 포함 (id, userId, userType, isAdmin), HTTPS 권장 (프로덕션)',
-          'CORS 정책 강화: 기존에 임시로 모든 도메인을 허용하던 설정을 제거하고, mathchang.com 및 개발 환경(localhost, 내부망 IP)만 허용하도록 변경',
+          'CORS 정책 강화: 기존에 임시로 모든 도메인을 허용하던 설정을 제거하고, mathchang.com 및 개발 환경(localhost, 내부망 IP)만 허용하도록 수정',
           'Rate Limiting 적용: 로그인, 아이디 찾기, 비밀번호 재설정 API에 요청 횟수 제한을 추가하여 브루트포스(무차별대입) 공격을 방지 (로그인 15분당 5회, 비밀번호 재설정 1시간당 3회)',
           '보안 헤더 추가: helmet.js를 적용하여 클릭재킹, MIME 스니핑, XSS 등 일반적인 웹 공격에 대한 방어 헤더를 자동 설정',
+          '요청 크기 제한: 요청 본문 크기를 10MB로 제한하여 대용량 요청 공격 방어',
           '입력 검증: 서버 측 유효성 검증, SQL Injection 방지 (MongoDB 사용), XSS 방지 (입력 데이터 이스케이프)',
           '개인정보 처리 로그: 모든 개인정보 접근 자동 기록, IP 주소, User-Agent, 접근 시간 저장, GDPR 준수'
+        ],
+        specialImplementations: [
+          '학생-학부모 n:m 연동 관계: ParentStudentLink 모델로 n:m 관계 구현 - 한 학생이 여러 학부모와 연동 가능, 한 학부모가 여러 학생과 연동 가능, 각 연동 관계가 독립적으로 관리됨, 연동 해지 시 다른 연동 관계는 영향 없음',
+          '학부모 학생 선택 모달: 학생이 1명이면 자동 선택, 여러 명이면 선택 모달 표시, X 버튼 클릭 시 상단 학생 자동 선택, 변경 버튼 클릭 시 안내 메시지 표시',
+          '자동 로그아웃 시스템: 30분 비활성 시 자동 로그아웃, 활동 감지 (마우스, 키보드, 스크롤, 터치, 클릭), 활동 시 타이머 자동 리셋, 5분 전 경고 알림, Axios 인터셉터와 연동하여 API 요청 시에도 활동 시간 업데이트',
+          'PC/모바일 애니메이션 분리: 화면 크기 감지 (isDesktop, isMobile), PC에서만 모든 카드에 애니메이션 적용, 모바일에서만 첫 번째 카드에 애니메이션 적용, Intersection Observer로 스크롤 애니메이션 최적화',
+          '학생 회원가입 시 학부모 계정 자동 생성: 학생 회원가입 시 parentContact 기반으로 학부모 계정 자동 생성, 기존 학부모 계정이 있으면 재사용, ParentStudentLink 자동 생성',
+          '학생 삭제 시 연동 정보 정리: 학생 삭제 시 연동된 학부모 계정은 유지, 연동 정보만 제거, 학부모의 studentContact를 "000-0000-0000"으로 초기화, ParentStudentLink 삭제'
         ],
         performance: [
           'MongoDB 인덱스 최적화: Unique 인덱스 (userId, email, sku), 복합 인덱스 ({grade, className}, {classId, date}, {studentId, date, classId}), 정렬 인덱스 (createdAt: -1, 최신순)',
           'Populate 최적화: 필요한 필드만 선택적으로 Populate (예: .populate("instructorId", "userId name email userType profileImage"))',
           'React 컴포넌트 최적화: 함수형 컴포넌트 + Hooks, useState, useEffect로 상태 관리, 불필요한 리렌더링 방지',
-          '페이지네이션: 대량 데이터 처리 시 페이지네이션 적용'
+          '페이지네이션: 대량 데이터 처리 시 페이지네이션 적용',
+          '불필요한 로그 제거: 성능에 불필요한 로그를 제거하여 서버 성능 향상'
         ],
         ux: [
           '반응형 디자인: 데스크톱 (968px 이상), 모바일 (968px 이하), CSS 미디어 쿼리로 반응형 구현',
@@ -1141,6 +1249,24 @@ function ProjectDetail() {
           </ul>
         </AccordionSection>
       )}
+      {details.dataFlow.parentStudentSelection && (
+        <AccordionSection sectionId="dataflow-parent-student-selection" title={details.dataFlow.parentStudentSelection.title}>
+          <ol className="flow-list">
+            {details.dataFlow.parentStudentSelection.steps.map((step, index) => (
+              <li key={index}>{step}</li>
+            ))}
+          </ol>
+        </AccordionSection>
+      )}
+      {details.dataFlow.classRecordFlow && (
+        <AccordionSection sectionId="dataflow-class-record-flow" title={details.dataFlow.classRecordFlow.title}>
+          <ol className="flow-list">
+            {details.dataFlow.classRecordFlow.steps.map((step, index) => (
+              <li key={index}>{step}</li>
+            ))}
+          </ol>
+        </AccordionSection>
+      )}
 
       <AccordionSection sectionId="dataflow-relationship" title={details.dataFlow.relationship.title}>
         <ul>
@@ -1214,6 +1340,16 @@ function ProjectDetail() {
           ))}
         </ul>
       </div>
+      {details.features.specialImplementations && (
+        <div className="feature-category">
+          <h3>특별한 구현 사항</h3>
+          <ul>
+            {details.features.specialImplementations.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 
