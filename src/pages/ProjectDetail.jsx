@@ -787,6 +787,422 @@ function ProjectDetail() {
       }
     },
     2: {
+      title: '창현수학 QUIZ LAB',
+      subtitle: '온라인 퀴즈 및 과제 관리 시스템',
+      website: 'https://quiz-opal-three.vercel.app/',
+      overview: {
+        purpose: '수학 학원을 운영하는 강사가 학생들에게 퀴즈와 실전TEST를 배포하고, 학생들이 온라인으로 풀이하여 제출할 수 있는 통합 학습 관리 시스템',
+        techStack: {
+          frontend: 'React 18.2.0 + Vite 5.0.8 + CSS Modules',
+          backend: 'Node.js v18+ + Express 4.18.2 + MongoDB Atlas + Mongoose 8.0.3',
+          auth: 'JWT (jsonwebtoken 9.0.3) + bcrypt 6.0.0',
+          deploy: 'Vercel (프론트엔드), Heroku (백엔드), MongoDB Atlas (백엔드), Cloudinary (파일 저장소)'
+        }
+      },
+      backend: {
+        server: {
+          title: '서버 설정 (server/server.js)',
+          features: [
+            'CORS 설정: 모든 origin 허용 (프로덕션에서는 FRONTEND_URL 사용)',
+            'JSON 파싱 미들웨어: express.json(), express.urlencoded({ extended: true })',
+            'MongoDB 연결: 환경변수 기반 동적 연결 (MONGODB_ATLAS_URL 우선)',
+            'API 라우트 연결: /api/auth, /api/users, /api/courses, /api/assignments, /api/answers, /api/cloudinary',
+            '헬스 체크: /api/health 엔드포인트로 서버 상태 확인 가능',
+            '포트 충돌 처리: Windows 환경에서 포트 충돌 시 자동으로 프로세스 종료 및 재시작'
+          ],
+          principle: 'CORS: 클라이언트와 서버가 다른 도메인에 있어 CORS 설정 필수 / 환경변수: .env 파일에서 MongoDB URI, JWT Secret, Cloudinary 설정 등 관리 / 포트 충돌 처리: Windows 환경에서 포트 충돌 시 자동으로 프로세스 종료 및 재시작 / 헬스 체크: /api/health 엔드포인트로 서버 상태 확인 가능'
+        },
+        models: [
+          {
+            name: 'User 모델',
+            fields: 'userId(String, unique, indexed, required, minlength: 4, maxlength: 20), password(String, required, minlength: 7, bcrypt 해싱), name(String, required, maxlength: 50), email(String, unique, required, validated), studentPhone(String, required, validated, 10-11자리), parentPhone(String, required, validated, 10-11자리), schoolName(String, required, maxlength: 100), grade(Enum: 초등/중등/고1/고2/고3, required), privacyConsent(Boolean, required, must be true), termsConsent(Boolean, required, must be true), role(Enum: student/admin/teacher, default: student), createdAt(Date, auto), updatedAt(Date, auto)',
+            principle: 'userId에 unique 인덱스 적용 (중복 방지) / 비밀번호는 pre-save hook에서 bcrypt로 해싱 (salt rounds: 10) / 이미 해시화된 비밀번호는 재해싱하지 않음 ($2로 시작하는 bcrypt 해시 확인) / comparePassword 메서드로 비밀번호 검증 / 타임스탬프 자동 관리 (Mongoose timestamps)'
+          },
+          {
+            name: 'Assignment 모델',
+            fields: 'assignmentName(String, required, maxlength: 100), subject(String, required, maxlength: 50), questionCount(Number, required, min: 1), assignmentType(Enum: QUIZ/실전TEST, default: QUIZ), startDate(Date, required), dueDate(Date, required, must be >= startDate), fileUrl([String], default: []), fileType([String], enum: image/pdf, default: []), answers([{questionNumber(Number, required, min: 1), answer(String, required), score(Number, required, min: 0, default: 1)}], default: []), submissions([{studentId(ObjectId, ref: User, required), studentAnswers([{questionNumber(Number, required), answer(String, required)}]), correctCount(Number, default: 0), wrongCount(Number, default: 0), submittedAt(Date, default: Date.now)}], default: []), createdAt(Date, auto), updatedAt(Date, auto)',
+            principle: '인덱스: assignmentName (검색 성능 향상), assignmentType (필터링 성능 향상), startDate, dueDate (날짜 범위 쿼리 성능 향상) / 여러 파일 지원 (이미지/PDF 배열) / 문항별 정답과 배점 관리 / 학생 제출 답안 및 자동 채점 결과 저장 / 학생인 경우 정답(answers) 필드 제외하여 반환'
+          },
+          {
+            name: 'Course 모델',
+            fields: 'courseName(String, required, maxlength: 100), teacher(ObjectId, ref: User, required), teacherName(String, required), students([ObjectId], ref: User, default: []), studentNames([String], default: []), assignments([ObjectId], ref: Assignment, default: []), createdAt(Date, auto), updatedAt(Date, auto)',
+            principle: '인덱스: courseName (검색 성능 향상), teacher (강사별 조회 성능 향상), students (학생별 조회 성능 향상) / 강사와 학생의 n:m 관계 지원 / 강좌별 과제 배정 관리 / 검색 및 표시를 위한 이름 배열 유지'
+          },
+          {
+            name: 'Answer 모델',
+            fields: 'assignmentId(ObjectId, ref: Assignment, required), studentId(ObjectId, ref: User, required), studentAnswers([{questionNumber(Number, required), answer(String, required)}]), correctCount(Number, default: 0), wrongCount(Number, default: 0), submittedAt(Date, default: Date.now), createdAt(Date, auto), updatedAt(Date, auto)',
+            principle: '과제와 학생의 1:N 관계 / 자동 채점 결과 저장 / 제출 시간 기록'
+          }
+        ],
+        middleware: {
+          title: '인증 미들웨어 (middleware/auth.js)',
+          features: [
+            'protect: JWT 토큰 검증 - Authorization 헤더에서 Bearer 토큰 추출 → "Bearer " 접두사 제거 → JWT 검증 (JWT_SECRET 사용) → 디코딩된 정보로 사용자 조회 → req.user에 사용자 정보 저장 (비밀번호 제외)',
+            'authorize: 역할 기반 접근 제어 (RBAC) - protect 미들웨어가 먼저 실행되어야 함 → req.user.role이 허용된 역할인지 확인 → 권한이 없으면 403 Forbidden 응답',
+            '에러 처리: JsonWebTokenError (유효하지 않은 토큰), TokenExpiredError (만료된 토큰) → 401 Unauthorized 응답'
+          ],
+          principle: 'Bearer 토큰 추출 → JWT 검증 → User 조회 → req.user에 저장 / 역할 기반 권한: role ("student", "admin", "teacher") 조합 / 에러 처리: 토큰 없음/유효하지 않은 토큰/사용자 없음 → 401 Unauthorized'
+        },
+        controllers: [
+          {
+            name: 'authController.js',
+            features: [
+              'register (회원가입): 비밀번호 bcrypt 해싱 (pre-save hook에서 자동 처리), userId 중복 확인, 이메일 중복 확인, 개인정보 수집 및 이용 동의 필수',
+              'login (로그인): bcrypt 비밀번호 검증, JWT 토큰 발급 (7일 또는 30일 유효, rememberMe 옵션에 따라), 토큰에 userId, id, role 포함',
+              'verify (토큰 검증): JWT 토큰 검증, 사용자 정보 반환'
+            ],
+            principle: 'bcrypt 비밀번호 검증 (bcrypt.compare) / JWT 토큰 발급 (jwt.sign) / 토큰에 userId, id, role 포함 / rememberMe 옵션에 따라 만료 시간 조정 (7일/30일)'
+          },
+          {
+            name: 'assignmentsController.js',
+            features: [
+              'getAllAssignments (모든 과제 조회): 페이지네이션 지원 (page, limit), 최신순 정렬',
+              'getAssignmentById (특정 과제 조회): 학생인 경우 정답(answers) 필드 제외, 관리자/강사는 전체 정보 반환',
+              'createAssignment (과제 생성): 관리자/강사만 가능, 파일 URL 배열 저장 (Cloudinary), 정답 배열 저장',
+              'updateAssignment (과제 수정): 관리자/강사만 가능, 기존 파일 삭제 및 새 파일 업로드',
+              'deleteAssignment (과제 삭제): 관리자/강사만 가능, Cloudinary에서 파일 삭제, 관련 강좌에서 과제 제거',
+              'submitAssignment (과제 제출): 학생만 가능, 정답과 비교하여 자동 채점, correctCount, wrongCount 계산, 제출 시간 저장'
+            ],
+            principle: '학생인 경우 정답 필드 제외하여 반환 / Cloudinary 파일 관리 (업로드/삭제) / 자동 채점: 정답과 학생 답안 비교 → correctCount, wrongCount 계산 / 제출 시간 저장'
+          },
+          {
+            name: 'coursesController.js',
+            features: [
+              'getAllCourses (모든 강좌 조회): 페이지네이션 지원, 강사별, 학생별 필터링 지원',
+              'getCourseById (특정 강좌 조회): 학생, 강사, 과제 정보 populate',
+              'createCourse (강좌 생성): 강사만 가능, 학생 배열, 과제 배열 초기화',
+              'updateCourse (강좌 수정): 강사만 가능, 학생 추가/제거, 과제 추가/제거',
+              'deleteCourse (강좌 삭제): 강사만 가능'
+            ],
+            principle: '강사와 학생의 n:m 관계 관리 / 강좌별 과제 배정 관리 / populate로 관계 데이터 효율적 조회'
+          },
+          {
+            name: 'usersController.js',
+            features: [
+              'getAllUsers (모든 사용자 조회): 관리자만 가능, 페이지네이션 지원',
+              'getUserById (특정 사용자 조회): 사용자 정보 반환 (비밀번호 제외)',
+              'updateUser (사용자 수정): 본인 또는 관리자만 가능',
+              'deleteUser (사용자 삭제): 관리자만 가능'
+            ],
+            principle: '관리자 권한 확인 / 비밀번호는 응답에서 제외 / 사용자 정보 CRUD'
+          },
+          {
+            name: 'answersController.js',
+            features: [
+              'getAnswerByAssignment (과제별 답안 조회): 학생은 본인 답안만, 관리자/강사는 모든 답안 조회',
+              'getAnswerByStudent (학생별 답안 조회): 학생은 본인 답안만, 관리자/강사는 모든 답안 조회'
+            ],
+            principle: '학생은 본인 답안만 조회 가능 / 관리자/강사는 모든 답안 조회 가능'
+          }
+        ]
+      },
+      frontend: {
+        routing: {
+          title: '라우팅 (App.jsx)',
+          routes: [
+            '메인 페이지: / (MainPage - 로그인/회원가입)',
+            '학생 페이지: / (로그인 후) → DashboardPage (과제 목록), /assignment/:id → AssignmentDetailPage (과제 풀이)',
+            '관리자 페이지: / (admin 로그인 후) → AdminDashboardPage',
+            '강사 페이지: / (teacher 로그인 후) → TeacherDashboardPage',
+            '조건부 렌더링으로 페이지 전환 (React Router 미사용), 역할별 페이지 분리, 페이지 전환 시 상단 스크롤, 강좌 선택 모달 (학생이 "학습하기" 버튼 클릭 시)'
+          ]
+        },
+        api: {
+          title: 'API 설정 (utils/api.js)',
+          features: [
+            'API 유틸리티 함수: GET, POST, PUT, DELETE, PATCH 요청 지원',
+            '자동 토큰 추가: 모든 API 요청에 자동으로 토큰 추가, localStorage에서 토큰 읽기, Bearer 토큰 형식으로 헤더 설정',
+            '에러 처리: 401 에러 시 자동 로그아웃 처리 (localStorage에서 토큰 및 사용자 정보 삭제)'
+          ],
+          principle: 'localStorage에서 토큰 자동 추출 / Authorization: Bearer {token} 헤더 자동 추가 / 401 에러 시 자동 로그아웃 처리 / 모든 API 요청에 자동으로 토큰 추가'
+        },
+        components: [
+          {
+            name: 'Login.jsx',
+            features: [
+              '로그인 폼: userId, password 입력, "아이디 기억하기" 옵션, 자동 로그인 처리',
+              '로그인 상태 관리: localStorage/sessionStorage에 토큰 저장, 사용자 정보 저장, rememberMe 옵션에 따라 토큰 만료 시간 조정 (7일/30일)'
+            ],
+            principle: 'JWT 토큰을 localStorage/sessionStorage에 저장 / 사용자 정보도 함께 저장 / rememberMe 옵션에 따라 토큰 만료 시간 조정 (7일/30일)'
+          },
+          {
+            name: 'Dashboard.jsx / DashboardPage.jsx',
+            features: [
+              '과제 목록 표시: 강좌별 필터링, 진행중/완료/전체 탭, 페이지네이션 (6개씩)',
+              '과제 상태 표시: "제출전" (미제출), "제출완료" (제출됨), "기간 만료" (제출 기간 지남, 미제출), "제출 후 마감" (제출 기간 지남, 제출됨)',
+              '통계 표시: 진행중인 과제 수, 완료된 과제 수, 최근 1개월 기간 표시'
+            ],
+            principle: '강좌별 필터링 / 페이지네이션 (6개씩) / 과제 상태별 분류 및 표시'
+          },
+          {
+            name: 'AssignmentDetailPage.jsx',
+            features: [
+              '이미지 뷰어: 여러 이미지 파일 지원, 이미지 간 전환 (이전/다음 버튼), 이미지 없으면 빈 캔버스 표시',
+              '캔버스 그리기 도구: 펜 도구 (5가지 색상: 검정, 빨강, 파랑, 초록, 보라), 지우개 도구, 펜 크기 조절 (1-10)',
+              '줌/팬 기능: 마우스 휠 줌 (PC), 드래그 팬 (PC), 핀치 줌 (모바일/태블릿), 줌 레벨 표시 및 리셋 버튼',
+              '답안 입력: 문항별 답안 입력 패널, 제출 버튼, 자동 저장 (localStorage)',
+              'localStorage 관리: 학생별 풀이 저장 (assignment_${assignmentId}_student_${studentId}_image_${index}), 제출 시간 저장, 24시간 후 자동 삭제'
+            ],
+            principle: '두 개의 캔버스 레이어 사용 (원본 이미지 레이어 + 그리기 레이어) / 줌/팬 기능: 마우스 휠 줌, 드래그 팬, 핀치 줌 / localStorage에 자동 저장 / 24시간 후 자동 삭제'
+          },
+          {
+            name: 'TestResultModal.jsx',
+            features: [
+              '학생 풀이 조회: 원본 이미지와 학생이 그린 그림 표시, 두 개의 캔버스 레이어 (원본 이미지 + 그리기)',
+              '줌/팬 기능: 마우스 휠 줌 (PC), 드래그 팬 (PC), 핀치 줌 (모바일/태블릿), 줌 컨트롤러 (+, -, 리셋)',
+              '이미지 스케일링: 뷰어 높이에 맞춰 이미지 크기 조정, 원본 비율 유지'
+            ],
+            principle: '원본 이미지와 그리기 레이어 분리 / 줌/팬 기능 지원 / 이미지 스케일링 및 비율 유지'
+          },
+          {
+            name: 'useAutoLogout.js (자동 로그아웃 훅)',
+            features: [
+              '30분 비활성 시 자동 로그아웃: INACTIVITY_TIME = 30 * 60 * 1000',
+              '활동 감지: 마우스, 키보드, 스크롤, 터치, 클릭 이벤트로 활동 감지',
+              '활동 시 타이머 자동 리셋: 활동 감지 시 localStorage에 lastActivity 업데이트, 타이머 리셋',
+              '5분 전 경고 알림: WARNING_TIME = 25 * 60 * 1000, 5분 전 alert 표시'
+            ],
+            principle: '활동 감지 이벤트 리스너 등록 (mousedown, mousemove, keypress, scroll, touchstart, click) → 활동 시 타이머 리셋 → 30분 비활성 시 자동 로그아웃'
+          },
+          {
+            name: 'AdminDashboardPage.jsx',
+            features: [
+              '관리자 대시보드: 관리자 권한 확인, 권한 없으면 접근 차단',
+              '관리 메뉴: 학생 관리, 강사 관리, 강좌 관리, 과제 관리, 제출 현황 조회'
+            ],
+            principle: '관리자 권한 확인 (role === "admin") / 권한 없으면 접근 차단'
+          },
+          {
+            name: 'TeacherDashboardPage.jsx',
+            features: [
+              '강사 대시보드: 강사 권한 확인, 권한 없으면 접근 차단',
+              '관리 메뉴: 강좌 관리, 과제 관리, 학생 관리, 제출 현황 조회'
+            ],
+            principle: '강사 권한 확인 (role === "teacher") / 권한 없으면 접근 차단'
+          }
+        ]
+      },
+      dataFlow: {
+        auth: {
+          title: '인증 흐름',
+          steps: [
+            '로그인 요청: 클라이언트에서 아이디/비밀번호 입력 → POST /api/auth/login → 서버에서 User.findOne({ userId })로 사용자 조회',
+            '비밀번호 검증: 서버에서 bcrypt.compare(plainPassword, hashedPassword)로 해시된 비밀번호와 평문 비밀번호 비교',
+            'JWT 토큰 발급: 서버에서 jwt.sign({ userId, id, role }, JWT_SECRET, { expiresIn: rememberMe ? "30d" : "7d" })로 토큰에 사용자 정보 포함하여 발급',
+            '토큰 저장: 클라이언트에서 localStorage 또는 sessionStorage에 토큰 저장, 사용자 정보도 함께 저장',
+            '인증된 요청: 이후 모든 API 요청에 Authorization: Bearer {token} 헤더 추가 → 서버에서 protect 미들웨어로 토큰 검증 (토큰 추출 → jwt.verify(token) → User.findById(decoded.id) → req.user에 사용자 정보 저장)'
+          ]
+        },
+        assignmentFlow: {
+          title: '과제 풀이 및 제출 흐름',
+          steps: [
+            '학생이 과제 선택: 대시보드에서 과제 선택 → AssignmentDetailPage로 이동',
+            'AssignmentDetailPage 로드: 이미지 로드, localStorage에서 저장된 풀이 확인',
+            '캔버스에 이미지 표시: 원본 이미지 레이어, 그리기 레이어 (투명)',
+            '학생이 펜/지우개로 풀이 작성: 그리기 이벤트 감지, 캔버스에 그리기, localStorage에 자동 저장',
+            '답안 입력 패널에서 문항별 답안 입력',
+            '제출 버튼 클릭: POST /api/assignments/:id/submit, { studentAnswers: [...] }',
+            '서버에서 자동 채점: 정답과 비교, correctCount, wrongCount 계산, submissions 배열에 저장',
+            '제출 시간 localStorage에 저장: 24시간 후 자동 삭제'
+          ]
+        },
+        permission: {
+          title: '권한 관리',
+          details: [
+            '역할 기반 접근 제어 (RBAC): 학생 (student), 강사 (teacher), 관리자 (admin)',
+            '학생 권한: 본인 데이터만 접근, 정답 조회 불가, 과제 제출 가능',
+            '강사 권한: 본인 강좌 데이터만 접근, 과제 생성/수정/삭제 가능, 학생 제출 현황 조회 가능',
+            '관리자 권한: 모든 데이터 접근 가능, 모든 기능 사용 가능',
+            'authorize 미들웨어: 역할 기반 접근 제어 (RBAC) - 관리자는 모든 권한 허용, 지정된 역할만 허용, 권한 없으면 403 반환'
+          ]
+        },
+        relationship: {
+          title: '데이터 관계',
+          details: [
+            'User (강사) ──→ Course (1:N): 한 강사가 여러 강좌 생성',
+            'User (학생) ──→ Course (N:M): 한 학생이 여러 강좌에 등록 가능',
+            'Course ──→ Assignment (N:M): 한 강좌에 여러 과제 배정 가능',
+            'User (학생) ──→ Assignment (N:M): 한 학생이 여러 과제 제출 가능',
+            'Assignment ──→ Answer (1:N): 한 과제에 여러 학생의 답안 제출'
+          ]
+        }
+      },
+      features: {
+        security: [
+          '비밀번호 보안: bcrypt 해싱 (salt rounds: 10), 최소 길이 7자, 복잡도 요구 (영문 + 숫자), 재해싱 방지 (이미 해시화된 비밀번호는 재해싱하지 않음)',
+          '인증 보안: JWT 토큰 기반 인증 (7일 또는 30일 만료, rememberMe 옵션에 따라), Bearer 토큰 형식, 토큰에 userId, id, role 포함',
+          '권한 관리: 역할 기반 접근 제어 (RBAC) - 학생: 본인 데이터만 접근, 정답 조회 불가, 강사: 본인 강좌 데이터만 접근, 관리자: 모든 데이터 접근 가능, 이중 체크 (protect + authorize)',
+          '입력 검증: Mongoose 스키마 검증 (데이터 타입, 필수 필드), 이메일 형식 검증, 전화번호 형식 검증 (10-11자리), 에러 처리 (사용자 친화적 에러 메시지)',
+          '개인정보 보호: 비밀번호 제외 (API 응답에서 비밀번호 필드 제외), 학생별 데이터 분리 (localStorage 키에 studentId 포함), 정답 보호 (학생은 정답 조회 불가)'
+        ],
+        performance: [
+          '데이터베이스 최적화: 인덱스 사용 (userId unique, assignmentName, assignmentType, startDate, dueDate, courseName, teacher, students), MongoDB aggregation으로 효율적 쿼리, populate로 관계 데이터 효율적 조회',
+          'API 최적화: 페이지네이션으로 대량 데이터 처리, 필요한 데이터만 가져오기 (limit 파라미터), 이미지 최적화 (Cloudinary 자동 최적화), 학생인 경우 정답 필드 제외하여 응답 크기 감소',
+          '프론트엔드 최적화: 상태 관리 최적화 (useState, useEffect), 조건부 렌더링으로 불필요한 렌더링 방지, useRef로 DOM 참조 최적화, requestAnimationFrame으로 애니메이션 최적화',
+          'localStorage 최적화: 학생별 키 분리로 데이터 충돌 방지, 24시간 후 자동 삭제로 저장 공간 관리, base64 이미지 압축'
+        ],
+        ux: [
+          '반응형 디자인: 모바일/데스크톱 최적화, CSS 미디어 쿼리로 반응형 구현',
+          '캔버스 기반 풀이 시스템: 이미지 위에 직접 풀이 작성, 펜/지우개 도구, 줌/팬 기능, 모바일/태블릿 지원 (핀치 줌, 터치 제스처)',
+          '로딩 상태 관리: 모든 비동기 작업에 로딩 상태 표시, 스켈레톤 UI 또는 로딩 스피너',
+          '에러 처리: 사용자 친화적 에러 메시지, 401 에러 시 자동 로그아웃, 네트워크 에러 시 재시도 안내',
+          '페이지 이동 시 스크롤: 페이지 전환 시 상단 스크롤',
+          '자동 로그아웃: 30분 비활성 시 자동 로그아웃, 5분 전 경고 알림'
+        ],
+        scalability: [
+          '모듈화된 구조: MVC 패턴 (Model, View, Controller 분리), 라우트 분리 (기능별로 라우트 파일 분리), 컴포넌트 분리 (재사용 가능한 컴포넌트)',
+          '환경변수 기반 설정: .env 파일로 환경별 설정 관리, 데이터베이스 URL, JWT Secret, Cloudinary 설정 등',
+          'Cloudinary 통합: 이미지 업로드 및 관리, 자동 최적화 및 변환, CDN 제공',
+          '에러 핸들링 통합: 통합 에러 핸들러로 모든 에러 처리, 에러 타입별 적절한 HTTP 상태 코드 반환'
+        ],
+        specialImplementations: [
+          '캔버스 기반 풀이 시스템: 두 개의 캔버스 레이어 사용 (원본 이미지 레이어 + 그리기 레이어), 원본 이미지와 그리기 레이어 분리, 줌/팬 기능 지원, localStorage에 자동 저장, 24시간 후 자동 삭제',
+          '모바일/태블릿 핀치 줌: 두 손가락 간 거리 계산, 핀치 중심점 기준으로 줌, 최소/최대 줌 레벨 제한 (0.5x ~ 5x)',
+          'PC 마우스 휠 줌 및 드래그 팬: 마우스 휠로 부드러운 줌, 드래그로 이미지 이동, 줌 중심점 유지',
+          '학생별 localStorage 키 분리: 각 학생의 풀이가 독립적으로 저장, 배포 환경에서도 정확한 학생별 데이터 조회, 데이터 충돌 방지',
+          '24시간 자동 삭제 시스템: 제출 후 24시간이 지나면 자동 삭제, 저장 공간 관리, 서버 부하 감소',
+          '이미지 스케일링 및 비율 유지: 뷰어 높이에 맞춰 이미지 크기 조정, 원본 비율 유지, 다양한 해상도 지원',
+          'Cloudinary 이미지 관리: 여러 파일 동시 업로드 지원, 과제 삭제 시 관련 이미지 자동 삭제, 보안 서명으로 삭제 요청 인증',
+          '자동 로그인 및 토큰 검증: 페이지 로드 시 토큰 확인, 주기적 토큰 검증 (5분마다), 만료 시 자동 로그아웃'
+        ]
+      }
+    },
+    4: {
+      title: '창현이에게 하고싶은말',
+      subtitle: '개인 방명록 웹 애플리케이션',
+      website: 'https://talking-chang.vercel.app/',
+      overview: {
+        purpose: '개인 방명록 웹 애플리케이션 (창현이에게 하고싶은말)',
+        techStack: {
+          frontend: 'HTML5 + CSS3 + Vanilla JavaScript (ES6+)',
+          backend: 'Firebase (Authentication, Realtime Database)',
+          auth: 'Firebase Authentication',
+          deploy: 'Vercel (프론트엔드), GitHub (프론트엔드)'
+        }
+      },
+      backend: {
+        server: {
+          title: 'Firebase 초기화 (index.html)',
+          features: [
+            'Firebase SDK 모듈 임포트 (firebase-app, firebase-database, firebase-auth)',
+            '전역 변수로 Firebase 인스턴스 공유',
+            '에러 처리 및 폴백',
+            'Authentication 초기화 실패 시 안내'
+          ],
+          principle: 'CDN을 통한 모듈 임포트 / window.firebaseApp, window.firebaseDb, window.firebaseAuth 전역 변수 / 최대 10초 대기 로직'
+        },
+        models: [
+          {
+            name: 'Guestbooks 데이터 구조',
+            fields: 'authorName, message, date (ISO 8601), userId (Firebase Auth UID), isAdmin',
+            principle: 'Firebase Realtime Database의 guestbooks/{guestbookId} 경로에 저장 / 실시간 동기화'
+          },
+          {
+            name: 'Users 데이터 구조',
+            fields: 'email, displayName, isAdmin',
+            principle: 'Firebase Realtime Database의 users/{userId} 경로에 저장 / isAdmin 플래그로 관리자 권한 관리'
+          }
+        ],
+        middleware: {
+          title: '인증 시스템 (AuthManager 클래스)',
+          features: ['로그인: Firebase Authentication signInWithEmailAndPassword', '회원가입: createUserWithEmailAndPassword', '로그아웃: signOut', '첫 관리자 생성: 관리자 없을 시 자동 생성'],
+          principle: 'Firebase Authentication JWT 토큰 기반 인증 (자동 관리) / onAuthStateChanged로 상태 감지 / Realtime Database에 isAdmin 플래그 저장'
+        },
+        controllers: [
+          {
+            name: 'GuestbookManager 클래스',
+            features: ['방명록 추가: addGuestbook()', '방명록 수정: updateGuestbook()', '방명록 삭제: deleteGuestbook()', '권한 확인: isOwner()', '실시간 리스너: onValue'],
+            principle: 'Firebase Realtime Database push/update/remove / 작성자 확인 (userId 비교) / 실시간 동기화'
+          },
+          {
+            name: 'AuthManager 클래스',
+            features: ['로그인: login()', '회원가입: signup()', '로그아웃: logout()', 'UI 업데이트: updateUI()', '관리자 확인: checkAdminExists()'],
+            principle: 'Firebase Authentication으로 인증 / 에러 코드별 한국어 메시지 변환 / 성공 시 자동 UI 업데이트'
+          }
+        ]
+      },
+      frontend: {
+        routing: {
+          title: '페이지 구조',
+          routes: [
+            '메인 페이지 (index.html): Hero Section, User Info Bar, Guestbook Form, Guestbook List, Footer',
+            '관리자 페이지 (admin.html): 대시보드, 사용자 관리, 방명록 관리'
+          ]
+        },
+        api: {
+          title: 'Firebase 통합',
+          features: ['Firebase Realtime Database 실시간 동기화', 'Firebase Authentication 인증', '실시간 리스너 (onValue)', '데이터 CRUD 작업'],
+          principle: 'Firebase SDK를 통한 실시간 데이터 동기화 / onValue 이벤트로 데이터 변경 시 자동 콜백 실행 / 오프라인 지원 (로컬 캐시)'
+        },
+        components: [
+          {
+            name: 'Hero Section',
+            features: ['메인 타이틀 "창현이에게 하고싶은말" 표시', '이모지 아이콘 (💬) 애니메이션 효과', '서브 타이틀 및 설명 문구'],
+            principle: 'CSS 애니메이션 (@keyframes iconAnimate)로 translateY, rotate, scale 효과 / 부드러운 움직임 (ease-in-out)'
+          },
+          {
+            name: 'User Info Bar',
+            features: ['로그인 상태 표시', '로그인/회원가입 버튼 (비로그인 시)', '로그아웃 버튼 (로그인 시)', '관리자 페이지 버튼 (관리자 권한 시)', '첫 관리자 생성 버튼'],
+            principle: 'Firebase Authentication 상태 감지 (onAuthStateChanged) / 사용자 정보 동적 표시 / 권한에 따른 조건부 렌더링'
+          },
+          {
+            name: 'Guestbook Form Section',
+            features: ['방명록 작성 폼', '이름 입력 필드 (로그인 시 자동 채움)', '메시지 입력 필드 (가로 스크롤만)', '작성 버튼', '비로그인 시 안내 메시지'],
+            principle: '로그인 상태에 따른 폼 활성화/비활성화 / Firebase Realtime Database에 데이터 저장 / XSS 방지를 위한 HTML 이스케이프 처리'
+          },
+          {
+            name: 'Guestbook List Section',
+            features: ['방명록 목록 표시 (최신순)', '작성자 이름, 작성 시간 (상대 시간), 메시지', '긴 메시지 자동 줄임 (3줄 또는 150자 초과 시)', '더보기 버튼으로 전체 메시지 모달', '본인 글만 수정/삭제 버튼 표시'],
+            principle: 'Firebase Realtime Database 실시간 리스너 (onValue) / 날짜 기준 내림차순 정렬 / -webkit-line-clamp로 텍스트 줄임 / 모달로 전체 메시지 표시'
+          },
+          {
+            name: '인증 모달',
+            features: ['로그인 폼 (이메일/비밀번호)', '회원가입 폼 (이름, 이메일, 비밀번호, 비밀번호 확인)', '첫 관리자 생성 모달', '에러 메시지 표시', '탭 전환'],
+            principle: 'CSS 클래스 토글 (active 클래스) / Firebase Authentication 인증 / 비밀번호 최소 길이 검증 (6자) / 에러 코드별 한국어 메시지 변환'
+          },
+          {
+            name: '관리자 페이지 (admin.html)',
+            features: ['대시보드: 통계 카드 (전체 사용자 수, 방명록 수, 관리자 수)', '사용자 관리: 목록 조회, 삭제, 관리자 권한 부여/제거', '방명록 관리: 목록 조회, 삭제'],
+            principle: 'Firebase Realtime Database에서 데이터 집계 / 관리자 권한으로 모든 방명록 삭제 가능 / isAdmin 플래그 관리'
+          }
+        ]
+      },
+      dataFlow: {
+        auth: {
+          title: '인증 흐름',
+          steps: [
+            '회원가입: 사용자 입력 → AuthManager.signup() → Firebase Authentication createUserWithEmailAndPassword → 성공 시 자동 로그인',
+            '로그인: 사용자 입력 → AuthManager.login() → Firebase Authentication signInWithEmailAndPassword → JWT 토큰 자동 저장 → onAuthStateChanged로 상태 감지',
+            '로그아웃: AuthManager.logout() → Firebase Authentication signOut → UI 상태 초기화'
+          ]
+        },
+        permission: {
+          title: '권한 관리',
+          details: [
+            '일반 사용자: isAdmin: false',
+            '관리자: isAdmin: true',
+            '방명록 수정/삭제: isOwner() 메서드로 작성자 확인 (userId 비교)',
+            '관리자 페이지 접근: isAdmin 플래그 확인',
+            '관리자 권한으로 모든 방명록 삭제 가능'
+          ]
+        },
+        relationship: {
+          title: '데이터 구조',
+          details: [
+            'guestbooks/{guestbookId}: 방명록 정보 (authorName, message, date, userId, isAdmin)',
+            'users/{userId}: 사용자 정보 (email, displayName, isAdmin)',
+            'Firebase Authentication UID와 방명록 userId로 작성자 확인'
+          ]
+        }
+      },
+      features: {
+        security: ['XSS 방지 (HTML 이스케이프 처리)', 'Firebase Authentication (JWT 토큰)', '비밀번호 최소 길이 검증 (6자)', '권한 기반 접근 제어', 'Firebase Realtime Database 보안 규칙'],
+        performance: ['Firebase Realtime Database 실시간 동기화', '사용자 정보 캐싱', '시간 표시 업데이트 최적화 (30초마다)', '불필요한 리렌더링 최소화', '이벤트 위임 패턴'],
+        ux: ['반응형 디자인 (모바일 우선 설계)', '호버 효과 (입체감)', '부드러운 애니메이션', '모달 및 탭 전환', '긴 메시지 자동 줄임 및 더보기 기능', '상대 시간 표시 (방금 전, N분 전 등)', '사용자 피드백 (로딩 상태, 에러 메시지)'],
+        scalability: ['모듈화된 구조 (GuestbookManager, AuthManager 클래스)', 'Firebase 기반 서버리스 아키텍처', '환경 변수 기반 설정', '재사용 가능한 컴포넌트 (모달, 폼, 카드)']
+      }
+    },
+    5: {
       title: '신동우와 물화탐구',
       subtitle: '과학 강사 소개 웹사이트',
       website: 'https://dongwoo-update.vercel.app/',
@@ -941,141 +1357,6 @@ function ProjectDetail() {
         performance: ['Firebase Realtime Database 실시간 동기화', 'Intersection Observer로 스크롤 애니메이션 최적화', '이벤트 위임으로 동적 요소 최적화'],
         ux: ['반응형 디자인 (모바일/태블릿/데스크톱)', '스크롤 애니메이션 (Fade-in, Slide-up)', '실시간 업데이트', '다중 탭 동기화', '사용자 피드백 (로딩 상태, 에러 메시지)'],
         scalability: ['모듈화된 구조 (페이지별 독립적인 JavaScript 파일)', 'Firebase 기반 서버리스 아키텍처', '환경변수 기반 설정 (firebase-config.js)']
-      }
-    },
-    4: {
-      title: '창현이에게 하고싶은말',
-      subtitle: '개인 방명록 웹 애플리케이션',
-      website: 'https://talking-chang.vercel.app/',
-      overview: {
-        purpose: '개인 방명록 웹 애플리케이션 (창현이에게 하고싶은말)',
-        techStack: {
-          frontend: 'HTML5 + CSS3 + Vanilla JavaScript (ES6+)',
-          backend: 'Firebase (Authentication, Realtime Database)',
-          auth: 'Firebase Authentication',
-          deploy: 'Vercel (프론트엔드), GitHub (프론트엔드)'
-        }
-      },
-      backend: {
-        server: {
-          title: 'Firebase 초기화 (index.html)',
-          features: [
-            'Firebase SDK 모듈 임포트 (firebase-app, firebase-database, firebase-auth)',
-            '전역 변수로 Firebase 인스턴스 공유',
-            '에러 처리 및 폴백',
-            'Authentication 초기화 실패 시 안내'
-          ],
-          principle: 'CDN을 통한 모듈 임포트 / window.firebaseApp, window.firebaseDb, window.firebaseAuth 전역 변수 / 최대 10초 대기 로직'
-        },
-        models: [
-          {
-            name: 'Guestbooks 데이터 구조',
-            fields: 'authorName, message, date (ISO 8601), userId (Firebase Auth UID), isAdmin',
-            principle: 'Firebase Realtime Database의 guestbooks/{guestbookId} 경로에 저장 / 실시간 동기화'
-          },
-          {
-            name: 'Users 데이터 구조',
-            fields: 'email, displayName, isAdmin',
-            principle: 'Firebase Realtime Database의 users/{userId} 경로에 저장 / isAdmin 플래그로 관리자 권한 관리'
-          }
-        ],
-        middleware: {
-          title: '인증 시스템 (AuthManager 클래스)',
-          features: ['로그인: Firebase Authentication signInWithEmailAndPassword', '회원가입: createUserWithEmailAndPassword', '로그아웃: signOut', '첫 관리자 생성: 관리자 없을 시 자동 생성'],
-          principle: 'Firebase Authentication JWT 토큰 기반 인증 (자동 관리) / onAuthStateChanged로 상태 감지 / Realtime Database에 isAdmin 플래그 저장'
-        },
-        controllers: [
-          {
-            name: 'GuestbookManager 클래스',
-            features: ['방명록 추가: addGuestbook()', '방명록 수정: updateGuestbook()', '방명록 삭제: deleteGuestbook()', '권한 확인: isOwner()', '실시간 리스너: onValue'],
-            principle: 'Firebase Realtime Database push/update/remove / 작성자 확인 (userId 비교) / 실시간 동기화'
-          },
-          {
-            name: 'AuthManager 클래스',
-            features: ['로그인: login()', '회원가입: signup()', '로그아웃: logout()', 'UI 업데이트: updateUI()', '관리자 확인: checkAdminExists()'],
-            principle: 'Firebase Authentication으로 인증 / 에러 코드별 한국어 메시지 변환 / 성공 시 자동 UI 업데이트'
-          }
-        ]
-      },
-      frontend: {
-        routing: {
-          title: '페이지 구조',
-          routes: [
-            '메인 페이지 (index.html): Hero Section, User Info Bar, Guestbook Form, Guestbook List, Footer',
-            '관리자 페이지 (admin.html): 대시보드, 사용자 관리, 방명록 관리'
-          ]
-        },
-        api: {
-          title: 'Firebase 통합',
-          features: ['Firebase Realtime Database 실시간 동기화', 'Firebase Authentication 인증', '실시간 리스너 (onValue)', '데이터 CRUD 작업'],
-          principle: 'Firebase SDK를 통한 실시간 데이터 동기화 / onValue 이벤트로 데이터 변경 시 자동 콜백 실행 / 오프라인 지원 (로컬 캐시)'
-        },
-        components: [
-          {
-            name: 'Hero Section',
-            features: ['메인 타이틀 "창현이에게 하고싶은말" 표시', '이모지 아이콘 (💬) 애니메이션 효과', '서브 타이틀 및 설명 문구'],
-            principle: 'CSS 애니메이션 (@keyframes iconAnimate)로 translateY, rotate, scale 효과 / 부드러운 움직임 (ease-in-out)'
-          },
-          {
-            name: 'User Info Bar',
-            features: ['로그인 상태 표시', '로그인/회원가입 버튼 (비로그인 시)', '로그아웃 버튼 (로그인 시)', '관리자 페이지 버튼 (관리자 권한 시)', '첫 관리자 생성 버튼'],
-            principle: 'Firebase Authentication 상태 감지 (onAuthStateChanged) / 사용자 정보 동적 표시 / 권한에 따른 조건부 렌더링'
-          },
-          {
-            name: 'Guestbook Form Section',
-            features: ['방명록 작성 폼', '이름 입력 필드 (로그인 시 자동 채움)', '메시지 입력 필드 (가로 스크롤만)', '작성 버튼', '비로그인 시 안내 메시지'],
-            principle: '로그인 상태에 따른 폼 활성화/비활성화 / Firebase Realtime Database에 데이터 저장 / XSS 방지를 위한 HTML 이스케이프 처리'
-          },
-          {
-            name: 'Guestbook List Section',
-            features: ['방명록 목록 표시 (최신순)', '작성자 이름, 작성 시간 (상대 시간), 메시지', '긴 메시지 자동 줄임 (3줄 또는 150자 초과 시)', '더보기 버튼으로 전체 메시지 모달', '본인 글만 수정/삭제 버튼 표시'],
-            principle: 'Firebase Realtime Database 실시간 리스너 (onValue) / 날짜 기준 내림차순 정렬 / -webkit-line-clamp로 텍스트 줄임 / 모달로 전체 메시지 표시'
-          },
-          {
-            name: '인증 모달',
-            features: ['로그인 폼 (이메일/비밀번호)', '회원가입 폼 (이름, 이메일, 비밀번호, 비밀번호 확인)', '첫 관리자 생성 모달', '에러 메시지 표시', '탭 전환'],
-            principle: 'CSS 클래스 토글 (active 클래스) / Firebase Authentication 인증 / 비밀번호 최소 길이 검증 (6자) / 에러 코드별 한국어 메시지 변환'
-          },
-          {
-            name: '관리자 페이지 (admin.html)',
-            features: ['대시보드: 통계 카드 (전체 사용자 수, 방명록 수, 관리자 수)', '사용자 관리: 목록 조회, 삭제, 관리자 권한 부여/제거', '방명록 관리: 목록 조회, 삭제'],
-            principle: 'Firebase Realtime Database에서 데이터 집계 / 관리자 권한으로 모든 방명록 삭제 가능 / isAdmin 플래그 관리'
-          }
-        ]
-      },
-      dataFlow: {
-        auth: {
-          title: '인증 흐름',
-          steps: [
-            '회원가입: 사용자 입력 → AuthManager.signup() → Firebase Authentication createUserWithEmailAndPassword → 성공 시 자동 로그인',
-            '로그인: 사용자 입력 → AuthManager.login() → Firebase Authentication signInWithEmailAndPassword → JWT 토큰 자동 저장 → onAuthStateChanged로 상태 감지',
-            '로그아웃: AuthManager.logout() → Firebase Authentication signOut → UI 상태 초기화'
-          ]
-        },
-        permission: {
-          title: '권한 관리',
-          details: [
-            '일반 사용자: isAdmin: false',
-            '관리자: isAdmin: true',
-            '방명록 수정/삭제: isOwner() 메서드로 작성자 확인 (userId 비교)',
-            '관리자 페이지 접근: isAdmin 플래그 확인',
-            '관리자 권한으로 모든 방명록 삭제 가능'
-          ]
-        },
-        relationship: {
-          title: '데이터 구조',
-          details: [
-            'guestbooks/{guestbookId}: 방명록 정보 (authorName, message, date, userId, isAdmin)',
-            'users/{userId}: 사용자 정보 (email, displayName, isAdmin)',
-            'Firebase Authentication UID와 방명록 userId로 작성자 확인'
-          ]
-        }
-      },
-      features: {
-        security: ['XSS 방지 (HTML 이스케이프 처리)', 'Firebase Authentication (JWT 토큰)', '비밀번호 최소 길이 검증 (6자)', '권한 기반 접근 제어', 'Firebase Realtime Database 보안 규칙'],
-        performance: ['Firebase Realtime Database 실시간 동기화', '사용자 정보 캐싱', '시간 표시 업데이트 최적화 (30초마다)', '불필요한 리렌더링 최소화', '이벤트 위임 패턴'],
-        ux: ['반응형 디자인 (모바일 우선 설계)', '호버 효과 (입체감)', '부드러운 애니메이션', '모달 및 탭 전환', '긴 메시지 자동 줄임 및 더보기 기능', '상대 시간 표시 (방금 전, N분 전 등)', '사용자 피드백 (로딩 상태, 에러 메시지)'],
-        scalability: ['모듈화된 구조 (GuestbookManager, AuthManager 클래스)', 'Firebase 기반 서버리스 아키텍처', '환경 변수 기반 설정', '재사용 가능한 컴포넌트 (모달, 폼, 카드)']
       }
     }
   }

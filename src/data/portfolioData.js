@@ -11,12 +11,12 @@ export const portfolioData = [
   },
   {
     id: 2,
-    title: '신동우와 물화탐구',
-    description: '과학 강사 소개 웹사이트',
-    pcImage: '/images/신동우과학 PC버전.png',
-    mobileImage: '/images/신동우과학 모바일버전.jpg',
-    tags: ['JavaScript', 'Firebase'],
-    status: 'in-progress'
+    title: '창현수학 QUIZ LAB',
+    description: '학생들의 수업 및 TEST 관리 시스템',
+    pcImage: '/images/퀴즈 pc버전.png',
+    mobileImage: '/images/퀴즈 모바일버전.jpg',
+    tags: ['React', 'Node.js', 'MongoDB'],
+    status: 'completed'
   },
   {
     id: 3,
@@ -33,6 +33,15 @@ export const portfolioData = [
     description: '방명록 웹사이트',
     pcImage: '/images/창현이에게 하고싶은말 PC버전.png',
     mobileImage: '/images/창현이에게 하고싶은말 모바일버전.jpg',
+    tags: ['JavaScript', 'Firebase'],
+    status: 'in-progress'
+  },
+  {
+    id: 5,
+    title: '신동우와 물화탐구',
+    description: '과학 강사 소개 웹사이트',
+    pcImage: '/images/신동우과학 PC버전.png',
+    mobileImage: '/images/신동우과학 모바일버전.jpg',
     tags: ['JavaScript', 'Firebase'],
     status: 'in-progress'
   }
